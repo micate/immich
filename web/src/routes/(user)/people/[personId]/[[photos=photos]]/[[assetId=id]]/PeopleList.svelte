@@ -3,8 +3,7 @@
   import { type PersonResponseDto } from '@immich/sdk';
   import { t } from 'svelte-i18n';
   import FaceThumbnail from './FaceThumbnail.svelte';
-  import { mdiSwapVertical } from '@mdi/js';
-  import { IconButton } from '@immich/ui';
+  import { Button } from '@immich/ui';
 
   interface Props {
     screenHeight: number;
@@ -16,7 +15,7 @@
 
   let { screenHeight, people, peopleToNotShow, onSelect, handleSearch }: Props = $props();
   let searchedPeopleLocal: PersonResponseDto[] = $state([]);
-  let sortBySimilarirty = $state(false);
+  let sortBySimilarity = $state(true);
   let name = $state('');
 
   const showPeople = $derived(
@@ -26,23 +25,38 @@
   );
 </script>
 
-<div class="flex h-14 w-40 place-items-center gap-4 sm:w-48 md:w-full">
+<div class="flex flex-wrap items-center gap-4">
   <div class="md:w-96">
     <SearchPeople type="searchBar" placeholder={$t('search_people')} bind:searchName={name} bind:searchedPeopleLocal />
   </div>
 
   {#if handleSearch}
-    <IconButton
-      shape="round"
-      color="secondary"
-      variant="ghost"
-      icon={mdiSwapVertical}
-      onclick={() => {
-        sortBySimilarirty = !sortBySimilarirty;
-        handleSearch(sortBySimilarirty);
-      }}
-      aria-label={$t('sort_people_by_similarity')}
-    />
+    <div class="flex gap-2" role="group" aria-label={$t('merge_people')}>
+      <Button
+        size="small"
+        variant={sortBySimilarity ? 'filled' : 'ghost'}
+        aria-pressed={sortBySimilarity}
+        onclick={() => {
+          sortBySimilarity = true;
+          name = '';
+          handleSearch(true);
+        }}
+      >
+        {$t('similar_people')}
+      </Button>
+      <Button
+        size="small"
+        variant={sortBySimilarity ? 'ghost' : 'filled'}
+        aria-pressed={!sortBySimilarity}
+        onclick={() => {
+          sortBySimilarity = false;
+          name = '';
+          handleSearch(false);
+        }}
+      >
+        {$t('known_people')}
+      </Button>
+    </div>
   {/if}
 </div>
 

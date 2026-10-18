@@ -500,8 +500,6 @@ export class PersonRepository {
     const items = await this.getVisiblePeopleQuery(userId, options.partnerIds)
       .select(withOwnedPerson(userId))
       .select(withOtherPeople(userId))
-      .orderBy('owned.isHidden', 'asc')
-      .orderBy('owned.isFavorite', 'desc')
       .$if(!!options.closestFaceAssetId, (qb) =>
         qb.orderBy((eb) =>
           eb(
@@ -521,6 +519,8 @@ export class PersonRepository {
       )
       .$if(!options.closestFaceAssetId, (qb) =>
         qb
+          .orderBy('owned.isHidden', 'asc')
+          .orderBy('owned.isFavorite', 'desc')
           .orderBy(sql`NULLIF("owned"."name", '') is null`, 'asc')
           .orderBy('faces.faceCount', 'desc')
           .orderBy(sql`NULLIF("owned"."name", '')`, (om) => om.asc().nullsLast())

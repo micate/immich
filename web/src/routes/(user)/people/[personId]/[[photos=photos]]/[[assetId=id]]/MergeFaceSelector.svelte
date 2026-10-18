@@ -29,17 +29,32 @@
   let hasSelection = $derived(selectedPeople.length > 0);
   let peopleToNotShow = $derived([...selectedPeople, person]);
 
-  const handleSearch = async (sortFaces: boolean = false) => {
-    const data = await getAllPeople({ withHidden: false, closestPersonId: sortFaces ? person.id : undefined });
-    people = data.people;
+  let searchRequest = 0;
+  let sortBySimilarity = true;
+
+  const handleSearch = async (sortFaces: boolean = true) => {
+    sortBySimilarity = sortFaces;
+    const request = ++searchRequest;
+    people = [];
+    try {
+      const data = await getAllPeople({ withHidden: false, closestPersonId: sortFaces ? person.id : undefined });
+      if (request === searchRequest) {
+        people = sortFaces ? data.people : data.people.filter(({ name }) => name.trim().length > 0);
+      }
+    } catch (error) {
+      if (request === searchRequest) {
+        handleError(error, $t('errors.failed_to_load_people'));
+      }
+    }
   };
 
-  onMount(handleSearch);
+  onMount(() => void handleSearch());
 
   const handleSwapPeople = async () => {
     // eslint-disable-next-line unicorn/no-unreadable-array-destructuring
     [person, selectedPeople[0]] = [selectedPeople[0], person];
     await goto(Route.viewPerson(person, { previousRoute: Route.people(), action: 'merge' }));
+    await handleSearch(sortBySimilarity);
   };
 
   const onSelect = async (selected: PersonResponseDto) => {

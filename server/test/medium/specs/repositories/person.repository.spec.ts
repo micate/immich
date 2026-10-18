@@ -442,6 +442,47 @@ describe(PersonRepository.name, () => {
   });
 
   describe('getAllForUser', () => {
+    it('should rank similarity ahead of favorites and put faces without embeddings last', async () => {
+      const db = await getKyselyDB();
+      const { ctx, sut } = setup(db);
+      const { user } = await ctx.newUser();
+      const createCandidate = async (name: string, isFavorite: boolean, vector?: number[]) => {
+        const { result: person } = await ctx.newPerson({ ownerId: user.id, name, isFavorite });
+        const { asset } = await ctx.newAsset({ ownerId: user.id });
+        const { assetFace } = await ctx.newAssetFace({ assetId: asset.id, personGroupId: person.personGroupId });
+        await db
+          .updateTable('person')
+          .set({ faceAssetId: assetFace.id })
+          .where('ownerId', '=', person.ownerId)
+          .where('personGroupId', '=', person.personGroupId)
+          .execute();
+        if (vector) {
+          await db
+            .insertInto('face_search')
+            .values({
+              faceId: assetFace.id,
+              embedding: JSON.stringify([...vector, ...Array.from({ length: 512 - vector.length }, () => 0)]),
+            })
+            .execute();
+        }
+        return { person, faceId: assetFace.id };
+      };
+      const source = await createCandidate('Source', false, [1, 0]);
+      const closest = await createCandidate('Closest', false, [1, 0.1]);
+      const favorite = await createCandidate('Favorite', true, [0, 1]);
+      const missing = await createCandidate('Missing embedding', true);
+
+      const people = await listFor(sut, user.id, { closestFaceAssetId: source.faceId });
+      expect(people.map(({ personGroupId }) => personGroupId)).toEqual([
+        source.person.personGroupId,
+        closest.person.personGroupId,
+        favorite.person.personGroupId,
+        missing.person.personGroupId,
+      ]);
+      const defaults = await listFor(sut, user.id);
+      expect(defaults.slice(0, 2).every(({ isFavorite }) => isFavorite)).toBe(true);
+    });
+
     it('should return the user own people', async () => {
       const { ctx, sut } = setup(await getKyselyDB());
       const { user } = await ctx.newUser();
